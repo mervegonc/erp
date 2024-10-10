@@ -11,14 +11,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.project.erp.dto.auth.company.request.CompanySignupRequest;
+import com.project.erp.dto.auth.company.request.EmployeeSigninRequest;
 import com.project.erp.dto.auth.company.response.CompanySignupResponse;
+import com.project.erp.dto.auth.company.response.EmployeeSigninResponse;
 import com.project.erp.dto.auth.user.request.UserSigninRequest;
 import com.project.erp.dto.auth.user.request.UserSignupRequest;
 import com.project.erp.dto.auth.user.response.UserSigninResponse;
 import com.project.erp.dto.auth.user.response.UserSignupResponse;
 import com.project.erp.service.company.abstracts.CompanyService;
+import com.project.erp.service.company.abstracts.EmployeeService;
 import com.project.erp.service.main.abstracts.UserService;
 
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 
 
@@ -27,7 +31,7 @@ import lombok.AllArgsConstructor;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-
+	private final EmployeeService employeeService;
 	private final UserService userService;
 	 @Autowired
     private CompanyService companyService;
@@ -62,11 +66,14 @@ public class AuthController {
 
 
 @PostMapping("/application")
-public ResponseEntity<CompanySignupResponse> createCompanySchemaAndAddData(@RequestBody CompanySignupRequest companySignupRequest) {
-    // Hem şemayı oluşturuyoruz hem de company tablosuna veri ekliyoruz
+public ResponseEntity<CompanySignupResponse> createCompanySchemaAndAddData(@Valid @RequestBody CompanySignupRequest companySignupRequest) {
     CompanySignupResponse response = companyService.createCompanySchemaAndAddData(companySignupRequest);
     return ResponseEntity.ok(response);
 }
+
+
+
+
 
 
 }

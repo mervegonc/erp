@@ -6,4 +6,5 @@ import com.project.erp.dto.auth.company.response.CompanySignupResponse;
 public interface CompanyService {
 
      CompanySignupResponse createCompanySchemaAndAddData(CompanySignupRequest companySignupRequest);
+     boolean deleteSchema(String schemaName);
 }

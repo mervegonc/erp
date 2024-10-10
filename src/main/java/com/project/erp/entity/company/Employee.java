@@ -30,7 +30,8 @@ public class Employee {
     @JoinColumn(name = "position_id", nullable = false)
     private Position position;
 
-    
+    @Column(nullable = false)
+    private String status ;  
 
     @Column(name = "hire_date", nullable = false)
     private Timestamp hireDate;

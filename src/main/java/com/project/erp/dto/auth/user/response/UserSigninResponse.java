@@ -15,9 +15,9 @@ public class UserSigninResponse  {
 
     private String token;
     private String type = "Bearer";
-    private String username;
+    //private String username;
     private UUID userId;
-    private String tokenType = "Bearer";
+   // private String tokenType = "Bearer";
     private String message;
 
  

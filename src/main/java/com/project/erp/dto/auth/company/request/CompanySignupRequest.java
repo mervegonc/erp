@@ -1,5 +1,7 @@
 package com.project.erp.dto.auth.company.request;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -16,4 +18,13 @@ public class CompanySignupRequest {
     private String email;
     private String companyCode;
 
+    @NotBlank
+    private String adminUsername;
+
+    @NotBlank
+    @Email
+    private String adminEmail;
+
+    @NotBlank
+    private String adminPassword;
 }

@@ -1,13 +1,12 @@
 package com.project.erp.controller;
-/* 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.project.erp.dto.auth.company.request.CompanySignupRequest;
-import com.project.erp.dto.auth.company.response.CompanySignupResponse;
 import com.project.erp.service.company.abstracts.CompanyService;
 
 @RestController
@@ -16,9 +15,14 @@ public class CompanyController {
  @Autowired
     private CompanyService companyService;
 
-    @PostMapping("/create")
-    public CompanySignupResponse createCompany(@RequestBody CompanySignupRequest companySignupRequest) {
-        return companyService.createCompany(companySignupRequest);
+     @DeleteMapping("/schema/{schemaName}")
+    public ResponseEntity<String> deleteSchema(@PathVariable String schemaName) {
+        boolean isDeleted = companyService.deleteSchema(schemaName);
+
+        if (isDeleted) {
+            return new ResponseEntity<>("Schema deleted successfully.", HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>("Schema not found or could not be deleted.", HttpStatus.NOT_FOUND);
+        }
     }
 }
-*/

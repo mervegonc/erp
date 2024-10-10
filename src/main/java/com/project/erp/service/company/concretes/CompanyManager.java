@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.UUID;
 import java.sql.Timestamp;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -18,6 +19,10 @@ public class CompanyManager implements CompanyService {
 
     @Autowired
     private EntityManager entityManager; // Schema oluşturmak ve tablolar için kullanacağız
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+    
+
 
     @Override
     @Transactional
@@ -55,13 +60,13 @@ public class CompanyManager implements CompanyService {
                 "(id BIGSERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, company_id UUID, created_time TIMESTAMP NOT NULL, updated_time TIMESTAMP)";
         
         String createEmployeeTableQuery = "CREATE TABLE IF NOT EXISTS " + schemaName + ".employee " +
-                "(id UUID PRIMARY KEY, user_id UUID, department_id UUID, position_id UUID, hire_date TIMESTAMP NOT NULL, company_code VARCHAR(100) NOT NULL, created_time TIMESTAMP NOT NULL, updated_time TIMESTAMP)";
+                "(id UUID PRIMARY KEY, user_id UUID, department_id BIGINT, status VARCHAR(50), position_id BIGINT, hire_date TIMESTAMP NOT NULL, company_code VARCHAR(100) NOT NULL, created_time TIMESTAMP NOT NULL, updated_time TIMESTAMP)";
         
         String createEmployeeRoleTableQuery = "CREATE TABLE IF NOT EXISTS " + schemaName + ".employee_role " +
-                "(id UUID PRIMARY KEY, employee_id UUID, role_id UUID, assigned_date TIMESTAMP NOT NULL, created_time TIMESTAMP NOT NULL, updated_time TIMESTAMP)";
+                "(id BIGSERIAL PRIMARY KEY, employee_id UUID, role_id BIGINT, assigned_date TIMESTAMP NOT NULL, created_time TIMESTAMP NOT NULL, updated_time TIMESTAMP)";
         
         String createJobListingTableQuery = "CREATE TABLE IF NOT EXISTS " + schemaName + ".job_listing " +
-                "(id UUID PRIMARY KEY, department_id UUID, position_id UUID, job_description TEXT NOT NULL, listing_date TIMESTAMP NOT NULL, expiration_date TIMESTAMP, created_time TIMESTAMP NOT NULL, updated_time TIMESTAMP)";
+                "(id BIGSERIAL PRIMARY KEY, department_id BIGINT, position_id BIGINT, job_description TEXT NOT NULL, listing_date TIMESTAMP NOT NULL, expiration_date TIMESTAMP, created_time TIMESTAMP NOT NULL, updated_time TIMESTAMP)";
         
                 String createPositionTableQuery = "CREATE TABLE IF NOT EXISTS " + schemaName + ".position " +
                 "(id BIGSERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, department_id BIGINT, description VARCHAR(500), created_time TIMESTAMP NOT NULL, updated_time TIMESTAMP)";
@@ -132,6 +137,8 @@ public class CompanyManager implements CompanyService {
         entityManager.createNativeQuery(insertRolesQuery).executeUpdate();
 // 7. Position kayıtlarını ekleme
 String insertPositionsQuery = "INSERT INTO " + schemaName + ".position (name, department_id, description, created_time) VALUES " +
+        "('System Manager', (SELECT id FROM " + schemaName + ".department WHERE name = 'System'), 'The person responsible for the system makes the necessary arrangements.', CURRENT_TIMESTAMP), " +
+        
         "('Software Engineer', (SELECT id FROM " + schemaName + ".department WHERE name = 'IT'), 'Responsible for developing software solutions.', CURRENT_TIMESTAMP), " +
         "('IT Support Specialist', (SELECT id FROM " + schemaName + ".department WHERE name = 'IT'), 'Provides technical support for software and hardware issues.', CURRENT_TIMESTAMP), " +
 
@@ -168,7 +175,7 @@ String insertPositionsQuery = "INSERT INTO " + schemaName + ".position (name, de
         "('Procurement Officer', (SELECT id FROM " + schemaName + ".department WHERE name = 'Procurement'), 'Manages purchasing activities and supplier relationships.', CURRENT_TIMESTAMP), " +
         "('Vendor Manager', (SELECT id FROM " + schemaName + ".department WHERE name = 'Procurement'), 'Oversees relationships with vendors and suppliers.', CURRENT_TIMESTAMP), " +
 
-        "('System Manager', (SELECT id FROM " + schemaName + ".department WHERE name = 'System'), 'The person responsible for the system makes the necessary arrangements.', CURRENT_TIMESTAMP), " +
+      
         
 /*(bu kısım doğru mukontrol eder misin)*/
 
@@ -178,6 +185,80 @@ String insertPositionsQuery = "INSERT INTO " + schemaName + ".position (name, de
 entityManager.createNativeQuery(insertPositionsQuery).executeUpdate();
 
 
+
+// Kullanıcıyı users tablosuna ekle
+String insertUserQuery = "INSERT INTO main.users (id, username, email, password, status, created_time) " +
+    "VALUES (:id, :username, :email, :password, :status, :createdTime)";
+UUID userId = UUID.randomUUID(); // Kullanıcı için yeni UUID oluştur
+
+entityManager.createNativeQuery(insertUserQuery)
+    .setParameter("id", userId)
+    .setParameter("username", companySignupRequest.getAdminUsername())
+    .setParameter("email", companySignupRequest.getAdminEmail())
+    .setParameter("password", passwordEncoder.encode(companySignupRequest.getAdminPassword())) // Şifreyi hash'le
+    .setParameter("status", "ACTIVE") // Status 'ACTIVE' olarak atanacak
+    .setParameter("createdTime", Timestamp.from(Instant.now()))
+    .executeUpdate();
+
+// Kullanıcıyı user_roles tablosuna ekle (role_id = 2 olacak şekilde)
+String insertUserRoleQuery = "INSERT INTO main.user_roles (user_id, role_id) VALUES (:userId, :roleId)";
+entityManager.createNativeQuery(insertUserRoleQuery)
+    .setParameter("userId", userId) // Yeni oluşturulan userId
+    .setParameter("roleId", 2) // Role ID '2' olacak
+    .executeUpdate();
+
+
+// Kullanıcıyı user_company tablosuna ekle
+String insertUserCompanyQuery = "INSERT INTO main.user_company (user_id, company_code, status) VALUES (:userId, :companyCode, :status)";
+entityManager.createNativeQuery(insertUserCompanyQuery)
+    .setParameter("userId", userId) // Kullanıcı ID'si
+    .setParameter("companyCode", companySignupRequest.getCompanyCode()) // Şirket kodu
+    .setParameter("status", "ACTIVE") // Status alanı
+    .executeUpdate();
+
+
+
+
+
+
+// Employee tablosuna ekleme sorgusu
+String insertEmployeeQuery = "INSERT INTO " + schemaName + ".employee " +
+    "(id, user_id, department_id, position_id, status, hire_date, company_code, created_time) " +
+    "VALUES (:id, :userId, " +
+    "(SELECT CAST(id AS BIGINT) FROM " + schemaName + ".department WHERE name = 'System'), " +  // UUID'ye cast işlemi
+    "(SELECT CAST(id AS BIGINT) FROM " + schemaName + ".position WHERE name = 'System Manager'), " +  // UUID'ye cast işlemi
+    ":status, :hireDate, :companyCode, :createdTime)";
+
+UUID employeeId = UUID.randomUUID(); // Employee için yeni UUID oluştur
+
+entityManager.createNativeQuery(insertEmployeeQuery)
+    .setParameter("id", employeeId)
+    .setParameter("userId", userId)
+    .setParameter("status", "ACTIVE")
+    .setParameter("hireDate", Timestamp.from(Instant.now()))
+    .setParameter("companyCode", companySignupRequest.getCompanyCode())
+    .setParameter("createdTime", Timestamp.from(Instant.now()))
+    .executeUpdate();
+
+    
+
+// Employee rolünü employee_role tablosuna ekleme sorgusu
+String insertEmployeeRoleQuery = "INSERT INTO " + schemaName + ".employee_role " +
+    "(employee_id, role_id, assigned_date, created_time) " +
+    "VALUES (:employeeId, " +
+    "(SELECT id FROM " + schemaName + ".e_role WHERE name = 'ROLE_EMPLOYEE'), " +
+    ":assignedDate, :createdTime)";
+
+entityManager.createNativeQuery(insertEmployeeRoleQuery)
+    .setParameter("employeeId", employeeId) // Employee ID'si UUID türünde
+    .setParameter("assignedDate", Timestamp.from(Instant.now())) // Atama tarihi
+    .setParameter("createdTime", Timestamp.from(Instant.now()))  // Oluşturulma zamanı
+    .executeUpdate();
+
+
+
+    
+
         // 8. Yanıt oluşturma
         return new CompanySignupResponse(
             companyUUID.toString(),
@@ -185,4 +266,30 @@ entityManager.createNativeQuery(insertPositionsQuery).executeUpdate();
             "Schema and company data created successfully in schema: " + schemaName
         );
     }
-}
+
+        @Override
+        @Transactional
+        public boolean deleteSchema(String schemaName) {
+                String checkSchemaExistsQuery = "SELECT schema_name FROM information_schema.schemata WHERE schema_name = :schemaName";
+
+                // Şemanın var olup olmadığını kontrol edelim
+                var existingSchemas = entityManager.createNativeQuery(checkSchemaExistsQuery)
+                        .setParameter("schemaName", schemaName.toLowerCase().replaceAll(" ", "_"))
+                        .getResultList();
+
+                if (existingSchemas.isEmpty()) {
+                return false;  // Şema yoksa, false dönelim
+                }
+
+                // Şema silme SQL sorgusu
+                String dropSchemaQuery = "DROP SCHEMA IF EXISTS " + schemaName + " CASCADE";
+                entityManager.createNativeQuery(dropSchemaQuery).executeUpdate();
+
+                return true;
+        }
+
+
+
+
+
+        }

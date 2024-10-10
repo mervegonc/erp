@@ -22,6 +22,9 @@ public class UserCompany {
 
     @Column(nullable = false, unique = true)
     private String companyCode;  // The unique code for the company this user is associated with
+
+    @Column(nullable = false)
+    private String status ; 
 }
 
 //bu class campanyCodeları tutmak için böylelikle hesap ayrırımı yapacağız, user için /linkIN-/company account 
