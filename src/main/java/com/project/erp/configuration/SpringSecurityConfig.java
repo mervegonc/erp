@@ -45,7 +45,8 @@ public class SpringSecurityConfig {
 		http.csrf(csrf -> csrf.disable()).authorizeHttpRequests((authorize) -> {
 
 			authorize.requestMatchers("/api/auth/**").permitAll()
-					.requestMatchers("/api/company/**").permitAll()
+					.requestMatchers("/api/company/schema/**").permitAll()
+					.requestMatchers("/api/employee/registerhr").permitAll()
 					.requestMatchers("/api/auth/application").permitAll();
 
 			authorize.requestMatchers(HttpMethod.GET, "/api/**");
@@ -54,6 +55,10 @@ public class SpringSecurityConfig {
 			authorize.requestMatchers(HttpMethod.POST, "/api/**");
 
 			authorize.requestMatchers(HttpMethod.POST, "/api/user/details");
+			authorize.requestMatchers(HttpMethod.POST, "/api/company/jobposting");
+			authorize.requestMatchers(HttpMethod.POST, "/api/employee/apply");
+			authorize.requestMatchers(HttpMethod.POST, "/api/employee/jobapplication/approve");
+			
 
 			authorize.requestMatchers(HttpMethod.DELETE, "/api/like/**");
 

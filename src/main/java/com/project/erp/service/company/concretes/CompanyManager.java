@@ -1,13 +1,24 @@
 package com.project.erp.service.company.concretes;
 
 import com.project.erp.dto.auth.company.request.CompanySignupRequest;
+import com.project.erp.dto.auth.company.request.JobApplicationApprovalRequest;
 import com.project.erp.dto.auth.company.response.CompanySignupResponse;
+import com.project.erp.entity.main.Companies;
+import com.project.erp.entity.main.JobPosting;
+import com.project.erp.entity.main.UserApplications;
+import com.project.erp.entity.main.UserCompany;
+import com.project.erp.repository.main.CompaniesRepository;
+import com.project.erp.repository.main.JobPostingRepository;
+import com.project.erp.repository.main.UserApplicationsRepository;
+import com.project.erp.repository.main.UserCompanyRepository;
+import com.project.erp.repository.main.UserRepository;
 import com.project.erp.service.company.abstracts.CompanyService;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.sql.Timestamp;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,8 +32,18 @@ public class CompanyManager implements CompanyService {
     private EntityManager entityManager; // Schema oluşturmak ve tablolar için kullanacağız
     @Autowired
     private PasswordEncoder passwordEncoder;
-    
+    @Autowired
+     private CompaniesRepository companiesRepository;
+    @Autowired
+    private JobPostingRepository jobPostingRepository;
+    @Autowired
+    private UserApplicationsRepository userApplicationsRepository;
 
+      @Autowired
+    private UserCompanyRepository userCompanyRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Override
     @Transactional
@@ -186,6 +207,11 @@ entityManager.createNativeQuery(insertPositionsQuery).executeUpdate();
 
 
 
+
+
+
+
+
 // Kullanıcıyı users tablosuna ekle
 String insertUserQuery = "INSERT INTO main.users (id, username, email, password, status, created_time) " +
     "VALUES (:id, :username, :email, :password, :status, :createdTime)";
@@ -209,14 +235,23 @@ entityManager.createNativeQuery(insertUserRoleQuery)
 
 
 // Kullanıcıyı user_company tablosuna ekle
-String insertUserCompanyQuery = "INSERT INTO main.user_company (user_id, company_code, status) VALUES (:userId, :companyCode, :status)";
+String insertUserCompanyQuery = "INSERT INTO main.user_company (user_id, company_code, status, username) " +
+                                "VALUES (:userId, :companyCode, :status, :username)";
 entityManager.createNativeQuery(insertUserCompanyQuery)
     .setParameter("userId", userId) // Kullanıcı ID'si
     .setParameter("companyCode", companySignupRequest.getCompanyCode()) // Şirket kodu
     .setParameter("status", "ACTIVE") // Status alanı
+    .setParameter("username", companySignupRequest.getAdminUsername()) // Username ekleniyor
     .executeUpdate();
 
 
+// companies tablosuna companycode ve schemaname ekle
+String insertCompaniesQuery = "INSERT INTO main.companies (company_code, schema_name) " +
+                                "VALUES (:companyCode, :schemaName)";
+entityManager.createNativeQuery(insertCompaniesQuery)
+    .setParameter("companyCode", companySignupRequest.getCompanyCode()) // Şirket kodu
+       .setParameter("schemaName", companySignupRequest.getSchemaName()) // Username ekleniyor
+    .executeUpdate();
 
 
 
@@ -290,6 +325,74 @@ entityManager.createNativeQuery(insertEmployeeRoleQuery)
 
 
 
+  @Override
+    @Transactional
+    public boolean approveJobApplication(JobApplicationApprovalRequest approvalRequest) {
+        // 1. Şirketin var olup olmadığını companyCode ile kontrol et
+        Optional<Companies> companyOpt = companiesRepository.findByCompanyCode(approvalRequest.getCompanyCode());
+        if (companyOpt.isEmpty()) {
+            throw new IllegalArgumentException("Company does not exist.");
+        }
+        String schemaName = companyOpt.get().getSchemaName();
 
+        // 2. İlanın var olup olmadığını ve doğru şirkete ait olup olmadığını kontrol et
+        Optional<JobPosting> jobPostingOpt = jobPostingRepository.findByIdAndCompanyCode(approvalRequest.getJobPostingId(), approvalRequest.getCompanyCode());
+        if (jobPostingOpt.isEmpty()) {
+            throw new IllegalArgumentException("Job posting does not exist or company mismatch.");
+        }
+
+        JobPosting jobPosting = jobPostingOpt.get();
+
+        // 3. UserApplications tablosunda başvurunun var olup olmadığını kontrol et
+        Optional<UserApplications> applicationOpt = userApplicationsRepository.findByUserIdAndJobPostingId(approvalRequest.getUserId(), approvalRequest.getJobPostingId());
+        if (applicationOpt.isEmpty()) {
+            throw new IllegalArgumentException("Job application not found.");
+        }
+
+        // 4. Başvuruyu onayla (status = APPROVED)
+        UserApplications application = applicationOpt.get();
+        application.setStatus("APPROVED");
+        userApplicationsRepository.save(application);
+
+        // 5. Employee tablosuna kayıt yap
+        String insertEmployeeQuery = "INSERT INTO " + schemaName + ".employee " +
+            "(id, user_id, department_id, position_id, status, hire_date, company_code, created_time) " +
+            "VALUES (:id, :userId, (SELECT id FROM " + schemaName + ".department WHERE name = :department), " +
+            "(SELECT id FROM " + schemaName + ".position WHERE name = :position), 'ACTIVE', :hireDate, :companyCode, :createdTime)";
+
+        UUID employeeId = UUID.randomUUID();
+        entityManager.createNativeQuery(insertEmployeeQuery)
+            .setParameter("id", employeeId)
+            .setParameter("userId", approvalRequest.getUserId())
+            .setParameter("department", jobPosting.getDepartment())
+            .setParameter("position", jobPosting.getPosition())
+            .setParameter("hireDate", new Timestamp(System.currentTimeMillis()))
+            .setParameter("companyCode", approvalRequest.getCompanyCode())
+            .setParameter("createdTime", new Timestamp(System.currentTimeMillis()))
+            .executeUpdate();
+
+        // 6. employee_role tablosuna kayıt yap (ROLE_EMPLOYEE)
+        String insertEmployeeRoleQuery = "INSERT INTO " + schemaName + ".employee_role " +
+            "(employee_id, role_id, assigned_date, created_time) " +
+            "VALUES (:employeeId, (SELECT id FROM " + schemaName + ".e_role WHERE name = 'ROLE_EMPLOYEE'), :assignedDate, :createdTime)";
+
+        entityManager.createNativeQuery(insertEmployeeRoleQuery)
+            .setParameter("employeeId", employeeId)
+            .setParameter("assignedDate", new Timestamp(System.currentTimeMillis()))
+            .setParameter("createdTime", new Timestamp(System.currentTimeMillis()))
+            .executeUpdate();
+
+
+
+             UserCompany userCompany = new UserCompany();
+        userCompany.setUserId(approvalRequest.getUserId());
+        userCompany.setUsername(userRepository.findById(approvalRequest.getUserId()).get().getUsername()); // Username'yi ana şemadaki users tablosundan alıyoruz
+        userCompany.setCompanyCode(approvalRequest.getCompanyCode());
+        userCompany.setStatus("ACTIVE");
+
+        userCompanyRepository.save(userCompany);
+
+        return true;
+    }
 
         }

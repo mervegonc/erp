@@ -20,11 +20,16 @@ public class UserCompany {
     @Column(nullable = false)
     private UUID userId;  // Links to the user in the main schema
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String companyCode;  // The unique code for the company this user is associated with
 
     @Column(nullable = false)
     private String status ; 
+    
+    @Column(nullable = false)
+    private String username;
+
+    
 }
 
 //bu class campanyCodeları tutmak için böylelikle hesap ayrırımı yapacağız, user için /linkIN-/company account 

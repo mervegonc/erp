@@ -10,9 +10,14 @@ public class EmployeeSigninResponse {
     private String type = "Bearer";
     private UUID userId;
     private String companyCode; // Yanıtta companyCode dönebiliriz.
-    private String message;  // Giriş işlemi hakkında bilgi veren mesaj
+    private String message;
+    
+    private UUID employeeId; // Giriş işlemi hakkında bilgi veren mesaj
+  
+
     public void setEmployeeId(UUID employeeId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setEmployeeId'");
+        this.employeeId = employeeId;
     }
+
+    
 }

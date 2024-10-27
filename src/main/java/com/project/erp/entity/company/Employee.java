@@ -32,6 +32,8 @@ public class Employee {
 
     @Column(nullable = false)
     private String status ;  
+    @Column(name = "company_code", nullable = false)  // Bu alanı ekleyin
+    private String companyCode;
 
     @Column(name = "hire_date", nullable = false)
     private Timestamp hireDate;

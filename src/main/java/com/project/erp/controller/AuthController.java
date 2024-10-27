@@ -18,6 +18,7 @@ import com.project.erp.dto.auth.user.request.UserSigninRequest;
 import com.project.erp.dto.auth.user.request.UserSignupRequest;
 import com.project.erp.dto.auth.user.response.UserSigninResponse;
 import com.project.erp.dto.auth.user.response.UserSignupResponse;
+import com.project.erp.entity.main.UserCompany;
 import com.project.erp.service.company.abstracts.CompanyService;
 import com.project.erp.service.company.abstracts.EmployeeService;
 import com.project.erp.service.main.abstracts.UserService;
@@ -70,10 +71,45 @@ public ResponseEntity<CompanySignupResponse> createCompanySchemaAndAddData(@Vali
     CompanySignupResponse response = companyService.createCompanySchemaAndAddData(companySignupRequest);
     return ResponseEntity.ok(response);
 }
+/* 
+@PostMapping("/signin/employee")
+public ResponseEntity<EmployeeSigninResponse> loginEmployee(@RequestBody EmployeeSigninRequest employeeSigninRequest) {
+	// Employee login işlemi
+	String token = employeeService.login(employeeSigninRequest);
+	
+	// Employee ID alma işlemi
+	UUID employeeId = employeeService.getEmployeeIdByUsername(employeeSigninRequest.getUsernameOrEmail());
+
+	// EmployeeSigninResponse objesi oluşturma
+	EmployeeSigninResponse employeeSigninResponse = new EmployeeSigninResponse();
+	employeeSigninResponse.setToken(token);
+	employeeSigninResponse.setEmployeeId(employeeId);
+
+	// Yanıt döndürme
+	return new ResponseEntity<>(employeeSigninResponse, HttpStatus.OK);
+}*/
 
 
+@PostMapping("/signin/employee")
+public ResponseEntity<EmployeeSigninResponse> loginEmployee(@RequestBody EmployeeSigninRequest employeeSigninRequest) {
+    // Employee login işlemi
+    String token = employeeService.login(employeeSigninRequest);
 
+    // Employee ID ve UserCompany bilgilerini alıyoruz
+    UUID employeeId = employeeService.getEmployeeIdByUsername(employeeSigninRequest.getUsernameOrEmail());
+    UserCompany userCompany = employeeService.getUserCompanyByUsernameAndCompanyCode(employeeSigninRequest.getUsernameOrEmail(), employeeSigninRequest.getCompanyCode());
 
+    // EmployeeSigninResponse objesi oluşturma
+    EmployeeSigninResponse employeeSigninResponse = new EmployeeSigninResponse();
+    employeeSigninResponse.setToken(token);
+    employeeSigninResponse.setEmployeeId(employeeId);
+    employeeSigninResponse.setUserId(userCompany.getUserId());
+    employeeSigninResponse.setCompanyCode(userCompany.getCompanyCode());
+    employeeSigninResponse.setMessage("Login successful");
+
+    // Yanıt döndürme
+    return new ResponseEntity<>(employeeSigninResponse, HttpStatus.OK);
+}
 
 
 }
